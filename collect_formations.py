@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 BASE='https://rohm.websoccer.info'
 DEST=Path(__file__).with_name('formations.json')
+CATALOG=Path(__file__).with_name('formations_catalog.json')
 LIMIT=max(1,min(int(os.getenv('FORMATION_BATCH','3')),10))
 PAUSE=max(2.0,float(os.getenv('FORMATION_PAUSE','2.5')))
 s=requests.Session();s.headers.update({'User-Agent':'WEBsakaFanTool/1.1 (noncommercial, limited rate)'})
@@ -63,6 +64,18 @@ def main():
         if isinstance(data,list):existing={int(f['id']):f for f in data if isinstance(f,dict) and 'id' in f}
     discovered=discover()
     if not discovered:raise RuntimeError('No formations discovered; previous export retained')
+    # Publish searchable names immediately, even before full 11-position data is collected.
+    catalog=[]
+    for fid,title in sorted(discovered.items()):
+        old=existing.get(fid,{})
+        m=re.search(r'(.+?)\s*\((\d+(?:-\d+)+)\)',title)
+        name=m.group(1).strip() if m else (old.get('name') or title)
+        system=m.group(2) if m else old.get('system','')
+        catalog.append({'id':fid,'name':name,'system':system,'url':f'{BASE}/formation/{fid}'})
+    temp=CATALOG.with_suffix('.tmp')
+    temp.write_text(json.dumps(catalog,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+    temp.replace(CATALOG)
+    print(f'Published {len(catalog)} searchable formation names',flush=True)
     todo=[fid for fid in discovered if fid not in existing]
     # Refresh existing formations only when no new formations remain.
     if not todo:todo=list(discovered)
