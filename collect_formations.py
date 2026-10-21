@@ -84,7 +84,11 @@ def main():
                 rows=rows_for(get(f'/formation/{fid}/position/{pos}'))
                 if not rows:raise ValueError(f'Empty/unrecognized position {pos}')
                 positions.append(rows)
+            old=existing.get(fid,{})
             existing[fid]={'id':fid,'name':name,'system':system,'positions':positions,'url':f'{BASE}/formation/{fid}'}
+            if old.get('layout_status')=='verified' and len(old.get('layout',[]))==11:
+                existing[fid]['layout']=old['layout']
+                existing[fid]['layout_status']='verified'
             successful+=1
             print(f'Validated {fid}: {name}, 11 positions',flush=True)
         except (requests.RequestException,ValueError) as e:
