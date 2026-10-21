@@ -42,12 +42,31 @@ jobs:
           print(f'Validated {len(data)} players')
           PYCODE
 
-      - name: Commit player data
+      - name: Collect formations
+        run: python collect_formations.py
+
+      - name: Check formation data before publishing
+        run: |
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          path=Path('formations.json')
+          data=json.loads(path.read_text(encoding='utf-8'))
+          if not isinstance(data,list) or len(data)<3:
+              raise SystemExit('Formation data missing or incomplete; not publishing')
+          for formation in data:
+              positions=formation.get('positions')
+              if not isinstance(positions,list) or len(positions)!=11 or any(not isinstance(p,list) or not p for p in positions):
+                  raise SystemExit(f'Invalid formation position data: {formation.get("id")}')
+          print(f'Validated {len(data)} formations')
+          PYCODE
+
+      - name: Commit player and formation data
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add players.json
+          git add players.json formations.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Update WEBsaka player data'
+            git commit -m 'Update WEBsaka player and formation data'
             git push
           fi
