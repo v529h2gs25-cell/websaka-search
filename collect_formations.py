@@ -100,6 +100,7 @@ def main():
         todo=ordered
     selected=todo[:LIMIT]
     success=0
+    updated=[]
     for fid in selected:
         entry=next(x for x in catalog if int(x['id'])==fid)
         try:
@@ -121,6 +122,7 @@ def main():
                 fresh['layout_status']='verified'
             existing[fid]=fresh
             success+=1
+            updated.append({'id':fid,'name':name,'system':system})
             # Persist every successful formation immediately, even if later entries fail.
             write_json(DEST,[existing[k] for k in sorted(existing)])
             print(f'OK {fid}: {name} (11 positions)',flush=True)
@@ -129,7 +131,7 @@ def main():
     # Advance beyond the last attempted ID, including failures.
     last=selected[-1] if selected else ids[cursor]
     next_cursor=(ids.index(last)+1)%len(ids)
-    write_json(STATE,{'cursor':next_cursor,'last_attempted_id':last,'catalog_count':len(ids)})
+    write_json(STATE,{'cursor':next_cursor,'last_attempted_id':last,'catalog_count':len(ids),'recent_updates':updated})
     print(f'Catalog {len(catalog)}; complete data {len(existing)}; successes {success}/{len(selected)}; next cursor {next_cursor}',flush=True)
 
 if __name__=='__main__':main()

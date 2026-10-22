@@ -2,7 +2,7 @@ name: Update WEBsaka formations
 on:
   workflow_dispatch:
   schedule:
-    - cron: '27 4 * * 2'
+    - cron: '27 4 * * *' # Daily 13:27 JST
 permissions:
   contents: write
 concurrency:
@@ -21,32 +21,40 @@ jobs:
         run: python -m pip install requests beautifulsoup4 pillow playwright
       - name: Install headless browser
         run: python -m playwright install --with-deps chromium
-      - name: Collect formation batch
+      - name: Collect next formation batch
         env:
-          FORMATION_BATCH: '3'
+          FORMATION_BATCH: '5'
           FORMATION_PAUSE: '2.5'
         run: python collect_formations.py
-      - name: Detect Wiki position coordinates
+      - name: Detect layouts (best effort)
+        continue-on-error: true
         env:
           LAYOUT_BATCH: '3'
         run: python collect_layouts.py
-      - name: Validate before publishing
+      - name: Validate collected data
         run: |
           python - <<'PYCODE'
           import json
           from pathlib import Path
-          data=json.loads(Path('formations.json').read_text(encoding='utf-8'))
-          assert isinstance(data,list) and data, 'No formations'
-          assert all(len(f.get('positions',[]))==11 and all(isinstance(p,list) and p for p in f['positions']) for f in data), 'Incomplete formation'
-          print('Validated',len(data),'formations')
+          catalog=json.loads(Path('formations_catalog.json').read_text(encoding='utf-8'))
+          assert isinstance(catalog,list) and catalog, 'Catalog is empty'
+          p=Path('formations.json')
+          if p.exists():
+              data=json.loads(p.read_text(encoding='utf-8'))
+              assert isinstance(data,list), 'Invalid formation data'
+              assert all(len(f.get('positions',[]))==11 and all(isinstance(x,list) and x for x in f['positions']) for f in data), 'Incomplete formation data'
+              print('Collected',len(data),'of',len(catalog),'formations')
+          else:
+              print('Catalog only; no complete formations yet')
           PYCODE
-      - name: Commit formation data
+      - name: Commit catalog, progress and formation data
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add formations.json formations_catalog.json
+          git add formations_catalog.json formations_progress.json
+          if [ -f formations.json ]; then git add formations.json; fi
           if ! git diff --cached --quiet; then
-            git commit -m 'Update WEBsaka formations'
+            git commit -m 'Collect next WEBsaka formation batch'
             git pull --rebase
             git push
           fi

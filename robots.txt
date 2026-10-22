@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://v529h2gs25-cell.github.io/websaka-search/sitemap.xml
